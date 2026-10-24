@@ -1,61 +1,111 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-const lots = [
-  {
-    id: 1,
-    title: 'Mesa de jantar vintage',
-    description: 'Peça artesanal com acabamento em madeira maciça.',
-    currentBid: 1500,
-    initialPrice: 1200,
-    minimumIncrement: 50,
-    timeLeft: '02:18:12',
-    status: 'Ativo',
-    seller: 'Leiloeiro oficial',
-    winner: 'João',
-  },
-  {
-    id: 2,
-    title: 'Relógio antigo de parede',
-    description: 'Relógio com mecanismo mecânico e caixa em latão.',
-    currentBid: 980,
-    initialPrice: 700,
-    minimumIncrement: 20,
-    timeLeft: '00:45:56',
-    status: 'Ativo',
-    seller: 'Antiga coleção',
-    winner: 'Maria',
-  },
-  {
-    id: 3,
-    title: 'Console retrô',
-    description: 'Console clássico com acessórios originais.',
-    currentBid: 2100,
-    initialPrice: 1800,
-    minimumIncrement: 100,
-    timeLeft: 'Encerrado',
-    status: 'Encerrado',
-    seller: 'Coleção retrô',
-    winner: 'Paulo',
-  },
-];
+const API_URL = 'http://localhost:3000';
 
-const auditLogs = [
-  { id: 1, action: 'Lote criado', details: 'Mesa de jantar vintage publicada no início da sessão.', createdAt: '2026-10-24 10:10' },
-  { id: 2, action: 'Lance registrado', details: 'João entrou com lance de R$ 1.500.', createdAt: '2026-10-24 10:15' },
-  { id: 3, action: 'Lote encerrado', details: 'Relógio de parede foi arrematado por Maria.', createdAt: '2026-10-24 10:31' },
-];
+const tabs = ['Vitrine', 'Leiloeiro', 'Lote ao vivo', 'Carteira', 'Auditoria'];
 
-const tabs = [
-  'Vitrine',
-  'Leiloeiro',
-  'Lote ao vivo',
-  'Carteira',
-  'Auditoria',
-];
+const initialLotForm = {
+  title: 'Coleção de arte',
+  description: 'Lote em ótimo estado com peças selecionadas.',
+  initialPrice: 1000,
+  minimumIncrement: 50,
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Vitrine');
-  const selectedLot = lots[0];
+  const [lots, setLots] = useState([]);
+  const [wallet, setWallet] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [selectedLotId, setSelectedLotId] = useState('lot-1');
+  const [lotForm, setLotForm] = useState(initialLotForm);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [lotsRes, walletRes, auditRes] = await Promise.all([
+          fetch(`${API_URL}/lots`),
+          fetch(`${API_URL}/users/user-1/balance`),
+          fetch(`${API_URL}/audit`),
+        ]);
+
+        const lotsData = await lotsRes.json();
+        const walletData = await walletRes.json();
+        const auditData = await auditRes.json();
+
+        setLots(lotsData.lots || []);
+        setWallet(walletData);
+        setAuditLogs(auditData.logs || []);
+      } catch (err) {
+        console.error('Erro ao carregar dados da API:', err);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const selectedLot = lots.find((lot) => lot.id === selectedLotId) || lots[0] || null;
+
+  const handleBid = async () => {
+    if (!selectedLot) return;
+
+    const nextBid = Number(selectedLot.currentBid) + Number(selectedLot.minimumIncrement || 0);
+
+    try {
+      const response = await fetch(`${API_URL}/lots/${selectedLot.id}/bids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: nextBid }),
+      });
+
+      const data = await response.json();
+      const updatedLots = lots.map((lot) =>
+        lot.id === selectedLot.id ? { ...lot, currentBid: nextBid } : lot
+      );
+
+      setLots(updatedLots);
+      alert(data.message || 'Lance registrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao registrar lance:', error);
+      alert('Não foi possível registrar o lance.');
+    }
+  };
+
+  const handleCreateLot = async (event) => {
+    event.preventDefault();
+
+    const payload = {
+      title: lotForm.title.trim(),
+      description: lotForm.description.trim() || 'Lote publicado na plataforma.',
+      initialPrice: Number(lotForm.initialPrice),
+      minimumIncrement: Number(lotForm.minimumIncrement),
+      seller: 'Leiloeiro oficial',
+      status: 'ACTIVE',
+      endsAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+    };
+
+    if (!payload.title || Number.isNaN(payload.initialPrice) || Number.isNaN(payload.minimumIncrement)) {
+      alert('Preencha os campos obrigatórios corretamente.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/lots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      setLots((currentLots) => [data.lot, ...currentLots]);
+      setSelectedLotId(data.lot.id);
+      setActiveTab('Vitrine');
+      setLotForm(initialLotForm);
+      alert('Lote publicado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao publicar lote:', error);
+      alert('Não foi possível publicar o lote.');
+    }
+  };
 
   return (
     <div className="app-shell">
@@ -90,15 +140,15 @@ export default function App() {
             <section className="overview-cards">
               <div className="stat-card">
                 <span className="label">Lotes ativos</span>
-                <strong>12</strong>
+                <strong>{lots.filter((lot) => lot.status === 'ACTIVE').length}</strong>
               </div>
               <div className="stat-card">
                 <span className="label">Lances hoje</span>
-                <strong>84</strong>
+                <strong>{lots.length * 12}</strong>
               </div>
               <div className="stat-card">
                 <span className="label">Saldo disponível</span>
-                <strong>R$ 4.200</strong>
+                <strong>{wallet ? `R$ ${wallet.availableBalance}` : 'R$ 0'}</strong>
               </div>
             </section>
 
@@ -113,7 +163,7 @@ export default function App() {
                     <div className="lot-header">
                       <h2>{lot.title}</h2>
                       <span className={`status-badge ${lot.status.toLowerCase()}`}>
-                        {lot.status}
+                        {lot.status === 'ACTIVE' ? 'Ativo' : 'Encerrado'}
                       </span>
                     </div>
 
@@ -130,11 +180,13 @@ export default function App() {
                       </div>
                       <div>
                         <span>Tempo</span>
-                        <strong>{lot.timeLeft}</strong>
+                        <strong>{lot.endsAt ? 'Ativo' : 'Encerrado'}</strong>
                       </div>
                     </div>
 
-                    <button type="button">Dar lance</button>
+                    <button type="button" onClick={() => { setSelectedLotId(lot.id); setActiveTab('Lote ao vivo'); }}>
+                      Dar lance
+                    </button>
                   </div>
                 </article>
               ))}
@@ -152,20 +204,42 @@ export default function App() {
             <div className="two-column-grid">
               <div className="panel-box">
                 <h3>Novo lote</h3>
-                <form className="field-form">
+                <form className="field-form" onSubmit={handleCreateLot}>
                   <label>
                     <span>Título</span>
-                    <input type="text" defaultValue="Coleção de arte" />
+                    <input
+                      type="text"
+                      value={lotForm.title}
+                      onChange={(event) => setLotForm((current) => ({ ...current, title: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    <span>Descrição</span>
+                    <input
+                      type="text"
+                      value={lotForm.description}
+                      onChange={(event) => setLotForm((current) => ({ ...current, description: event.target.value }))}
+                    />
                   </label>
                   <label>
                     <span>Valor inicial</span>
-                    <input type="number" defaultValue="1000" />
+                    <input
+                      type="number"
+                      min="0"
+                      value={lotForm.initialPrice}
+                      onChange={(event) => setLotForm((current) => ({ ...current, initialPrice: event.target.value }))}
+                    />
                   </label>
                   <label>
                     <span>Incremento mínimo</span>
-                    <input type="number" defaultValue="50" />
+                    <input
+                      type="number"
+                      min="0"
+                      value={lotForm.minimumIncrement}
+                      onChange={(event) => setLotForm((current) => ({ ...current, minimumIncrement: event.target.value }))}
+                    />
                   </label>
-                  <button type="button">Publicar lote</button>
+                  <button type="submit">Publicar lote</button>
                 </form>
               </div>
 
@@ -187,7 +261,7 @@ export default function App() {
           </section>
         )}
 
-        {activeTab === 'Lote ao vivo' && (
+        {activeTab === 'Lote ao vivo' && selectedLot && (
           <section className="panel-section">
             <div className="section-header">
               <p className="eyebrow">Sala do lote</p>
@@ -202,7 +276,7 @@ export default function App() {
                     <span>Leiloeiro</span>
                     <strong>{selectedLot.seller}</strong>
                     <span>Tempo restante</span>
-                    <strong>{selectedLot.timeLeft}</strong>
+                    <strong>{selectedLot.endsAt ? 'Ativo' : 'Encerrado'}</strong>
                     <span>Incremento mínimo</span>
                     <strong>R$ {selectedLot.minimumIncrement}</strong>
                   </div>
@@ -214,9 +288,9 @@ export default function App() {
                 <form className="field-form">
                   <label>
                     <span>Valor do lance</span>
-                    <input type="number" defaultValue={selectedLot.currentBid + selectedLot.minimumIncrement} />
+                    <input type="number" defaultValue={Number(selectedLot.currentBid) + Number(selectedLot.minimumIncrement || 0)} />
                   </label>
-                  <button type="button">Confirmar lance</button>
+                  <button type="button" onClick={handleBid}>Confirmar lance</button>
                 </form>
 
                 <div className="bid-history">
@@ -232,7 +306,7 @@ export default function App() {
           </section>
         )}
 
-        {activeTab === 'Carteira' && (
+        {activeTab === 'Carteira' && wallet && (
           <section className="panel-section">
             <div className="section-header">
               <p className="eyebrow">Carteira</p>
@@ -245,15 +319,15 @@ export default function App() {
                 <div className="wallet-summary">
                   <div>
                     <span>Total</span>
-                    <strong>R$ 5.000</strong>
+                    <strong>R$ {wallet.totalBalance}</strong>
                   </div>
                   <div>
                     <span>Disponível</span>
-                    <strong>R$ 4.200</strong>
+                    <strong>R$ {wallet.availableBalance}</strong>
                   </div>
                   <div>
                     <span>Comprometido</span>
-                    <strong>R$ 800</strong>
+                    <strong>R$ {wallet.committedBalance}</strong>
                   </div>
                 </div>
               </div>
@@ -261,18 +335,14 @@ export default function App() {
               <div className="panel-box">
                 <h3>Meus arremates</h3>
                 <ul className="list-block compact">
-                  <li>
-                    <div>
-                      <strong>Console retrô</strong>
-                      <span>Arrematado por R$ 2.100</span>
-                    </div>
-                  </li>
-                  <li>
-                    <div>
-                      <strong>Relógio antigo</strong>
-                      <span>Em disputa</span>
-                    </div>
-                  </li>
+                  {(wallet.wonAuctions || []).map((item) => (
+                    <li key={item.id}>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <span>Arrematado por R$ {item.amount}</span>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -300,7 +370,7 @@ export default function App() {
                     <tr key={log.id}>
                       <td>{log.action}</td>
                       <td>{log.details}</td>
-                      <td>{log.createdAt}</td>
+                      <td>{new Date(log.createdAt).toLocaleString('pt-BR')}</td>
                     </tr>
                   ))}
                 </tbody>
