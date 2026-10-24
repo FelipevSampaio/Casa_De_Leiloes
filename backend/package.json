@@ -8,5 +8,14 @@
     "start": "node src/index.js",
     "build": "echo 'Backend build not configured yet'",
     "lint": "echo 'Backend lint not configured yet'"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "@prisma/client": "^5.18.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.18.0"
   }
 }
