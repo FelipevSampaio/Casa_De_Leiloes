@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SELLER
+  BIDDER
+}
+
+enum LotStatus {
+  ACTIVE
+  CLOSED
+  CANCELED
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  role      UserRole
+  balance   Decimal   @default(0)
+  createdAt DateTime  @default(now())
+
+  lots      Lot[]       @relation("LotSeller")
+  bids      Bid[]
+  auditLogs AuditLog[]
+}
+
+model Lot {
+  id               String    @id @default(cuid())
+  title            String
+  description      String
+  initialPrice     Decimal
+  minimumIncrement Decimal
+  currentBid       Decimal?
+  status           LotStatus @default(ACTIVE)
+  createdById      String
+  winnerId         String?
+  startedAt        DateTime  @default(now())
+  endsAt           DateTime
+  createdAt        DateTime  @default(now())
+
+  seller    User       @relation("LotSeller", fields: [createdById], references: [id])
+  winner    User?      @relation(fields: [winnerId], references: [id])
+  bids      Bid[]
+  auditLogs AuditLog[]
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  lotId     String
+  bidderId  String
+  amount    Decimal
+  createdAt DateTime @default(now())
+
+  lot    Lot  @relation(fields: [lotId], references: [id])
+  bidder User @relation(fields: [bidderId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  lotId     String
+  actorId   String?
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+
+  lot   Lot   @relation(fields: [lotId], references: [id])
+  actor User? @relation(fields: [actorId], references: [id])
+}
