@@ -26,7 +26,8 @@ body {
 }
 
 button,
-a {
+a,
+input {
   transition: all 0.2s ease;
 }
 
@@ -73,17 +74,22 @@ a {
 
 .nav-links {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.nav-links a {
-  color: #dfeafc;
-  text-decoration: none;
-  opacity: 0.8;
+.nav-tab {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #eaf3ff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
 }
 
-.nav-links a:hover {
-  opacity: 1;
+.nav-tab.active {
+  background: linear-gradient(135deg, rgba(82, 211, 221, 0.18), rgba(141, 223, 121, 0.2));
+  border-color: rgba(82, 211, 221, 0.5);
 }
 
 .page {
@@ -103,7 +109,8 @@ a {
   font-weight: 700;
 }
 
-.hero h1 {
+.hero h1,
+.section-header h2 {
   margin: 0;
   font-size: clamp(2.2rem, 5vw, 4rem);
   line-height: 1.1;
@@ -116,12 +123,17 @@ a {
   margin: 28px 0 32px;
 }
 
-.stat-card {
-  padding: 24px 20px;
+.stat-card,
+.panel-box,
+.lot-card {
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(6px);
+}
+
+.stat-card {
+  padding: 24px 20px;
 }
 
 .label {
@@ -135,17 +147,41 @@ a {
   font-size: 1.8rem;
 }
 
-.lot-grid {
+.lot-grid,
+.wallet-grid,
+.two-column-grid,
+.live-grid {
   display: grid;
   gap: 18px;
+}
+
+.lot-grid {
+  grid-template-columns: 1fr;
+}
+
+.two-column-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wallet-grid,
+.live-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panel-section {
+  display: grid;
+  gap: 22px;
+}
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .lot-card {
   display: grid;
   grid-template-columns: 200px 1fr;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
   overflow: hidden;
 }
 
@@ -214,12 +250,21 @@ a {
   gap: 6px;
 }
 
-.lot-meta span {
+.lot-meta span,
+.live-info span,
+.wallet-summary span,
+.list-block span,
+.bid-history span,
+.field-form span {
   color: #b7c8df;
   font-size: 0.8rem;
 }
 
-.lot-meta strong {
+.lot-meta strong,
+.live-info strong,
+.wallet-summary strong,
+.list-block strong,
+.bid-history strong {
   font-size: 1rem;
 }
 
@@ -237,8 +282,130 @@ button:hover {
   transform: translateY(-1px);
 }
 
+.secondary-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: #edf5ff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.panel-box {
+  padding: 20px;
+}
+
+.panel-box h3,
+.panel-box h4 {
+  margin-top: 0;
+}
+
+.field-form {
+  display: grid;
+  gap: 14px;
+}
+
+.field-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.field-form input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  background: rgba(9, 17, 30, 0.28);
+  color: #edf5ff;
+}
+
+.list-block {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.list-block li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.list-block li > div {
+  display: grid;
+  gap: 4px;
+}
+
+.lot-live-card {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+}
+
+.lot-live-image {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(82, 211, 221, 0.15), rgba(141, 223, 121, 0.2));
+}
+
+.live-info {
+  display: grid;
+  gap: 8px;
+}
+
+.bid-history ul {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.bid-history li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wallet-summary {
+  display: grid;
+  gap: 18px;
+}
+
+.wallet-summary div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.audit-table th,
+.audit-table td {
+  padding: 12px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 @media (max-width: 780px) {
-  .lot-card {
+  .lot-card,
+  .lot-live-card,
+  .two-column-grid,
+  .wallet-grid,
+  .live-grid {
     grid-template-columns: 1fr;
   }
 
@@ -253,6 +420,10 @@ button:hover {
   }
 
   .nav-links {
-    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .nav-tab {
+    flex: 1 1 150px;
   }
 }
