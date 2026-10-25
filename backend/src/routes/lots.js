@@ -1,52 +1,42 @@
 import express from 'express';
 
+import { prisma } from '../lib/prisma.js';
+import { sampleLots } from '../data/mockData.js';
+
 const router = express.Router();
 
-const sampleLots = [
-  {
-    id: 'lot-1',
-    title: 'Mesa de jantar vintage',
-    description: 'Peça artesanal com acabamento em madeira maciça.',
-    initialPrice: 1200,
-    minimumIncrement: 50,
-    currentBid: 1500,
-    status: 'ACTIVE',
-    seller: 'Leiloeiro oficial',
-    endsAt: '2026-10-24T12:00:00.000Z',
-  },
-  {
-    id: 'lot-2',
-    title: 'Relógio antigo de parede',
-    description: 'Relógio com mecanismo mecânico e caixa em latão.',
-    initialPrice: 700,
-    minimumIncrement: 20,
-    currentBid: 980,
-    status: 'ACTIVE',
-    seller: 'Antiga coleção',
-    endsAt: '2026-10-24T14:00:00.000Z',
-  },
-  {
-    id: 'lot-3',
-    title: 'Console retrô',
-    description: 'Console clássico com acessórios originais.',
-    initialPrice: 1800,
-    minimumIncrement: 100,
-    currentBid: 2100,
-    status: 'CLOSED',
-    seller: 'Coleção retrô',
-    endsAt: '2026-10-23T18:00:00.000Z',
-  },
-];
+const getLotsFromSource = async () => {
+  if (!process.env.DATABASE_URL) {
+    return sampleLots;
+  }
 
-router.get('/', (req, res) => {
+  try {
+    const lots = await prisma.lot.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return lots.map((lot) => ({
+      ...lot,
+      currentBid: lot.currentBid ?? lot.initialPrice,
+      status: lot.status,
+    }));
+  } catch (error) {
+    console.warn('Falling back to mock data because PostgreSQL is unavailable:', error.message);
+    return sampleLots;
+  }
+};
+
+router.get('/', async (req, res) => {
+  const lots = await getLotsFromSource();
   res.json({
     message: 'Listar lotes ativos',
-    lots: sampleLots,
+    lots,
   });
 });
 
-router.get('/:id', (req, res) => {
-  const lot = sampleLots.find((item) => item.id === req.params.id) || sampleLots[0];
+router.get('/:id', async (req, res) => {
+  const lots = await getLotsFromSource();
+  const lot = lots.find((item) => item.id === req.params.id) || lots[0];
 
   res.json({
     message: 'Detalhes do lote',
@@ -54,7 +44,7 @@ router.get('/:id', (req, res) => {
   });
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const payload = req.body;
   const newLot = {
     id: `lot-${Date.now()}`,
@@ -63,20 +53,56 @@ router.post('/', (req, res) => {
     status: 'ACTIVE',
   };
 
+  if (process.env.DATABASE_URL) {
+    try {
+      const created = await prisma.lot.create({
+        data: {
+          title: payload.title,
+          description: payload.description || 'Lote criado pela plataforma.',
+          initialPrice: payload.initialPrice,
+          minimumIncrement: payload.minimumIncrement,
+          currentBid: payload.initialPrice,
+          status: 'ACTIVE',
+          endsAt: payload.endsAt ? new Date(payload.endsAt) : new Date(Date.now() + 3 * 60 * 60 * 1000),
+          createdById: 'mock-seller',
+        },
+      });
+
+      return res.status(201).json({ message: 'Criar lote', lot: { ...created, currentBid: created.currentBid ?? created.initialPrice } });
+    } catch (error) {
+      console.warn('Prisma insert failed, using mock data fallback:', error.message);
+    }
+  }
+
   sampleLots.unshift(newLot);
 
-  res.status(201).json({
+  return res.status(201).json({
     message: 'Criar lote',
     lot: newLot,
   });
 });
 
-router.post('/:id/bids', (req, res) => {
+router.post('/:id/bids', async (req, res) => {
   const { amount } = req.body;
-  const lot = sampleLots.find((item) => item.id === req.params.id) || sampleLots[0];
+  const lots = await getLotsFromSource();
+  const lot = lots.find((item) => item.id === req.params.id) || lots[0];
 
   if (lot) {
     lot.currentBid = Number(amount);
+  }
+
+  if (process.env.DATABASE_URL) {
+    try {
+      await prisma.bid.create({
+        data: {
+          lotId: req.params.id,
+          bidderId: 'mock-bidder',
+          amount: Number(amount),
+        },
+      });
+    } catch (error) {
+      console.warn('Bid save to Prisma failed:', error.message);
+    }
   }
 
   res.status(201).json({
@@ -89,8 +115,9 @@ router.post('/:id/bids', (req, res) => {
   });
 });
 
-router.post('/:id/close', (req, res) => {
-  const lot = sampleLots.find((item) => item.id === req.params.id) || sampleLots[0];
+router.post('/:id/close', async (req, res) => {
+  const lots = await getLotsFromSource();
+  const lot = lots.find((item) => item.id === req.params.id) || lots[0];
 
   if (lot) {
     lot.status = 'CLOSED';

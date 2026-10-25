@@ -27,6 +27,7 @@ model User {
   createdAt DateTime  @default(now())
 
   lots      Lot[]       @relation("LotSeller")
+  wonLots   Lot[]       @relation("LotWinner")
   bids      Bid[]
   auditLogs AuditLog[]
 }
@@ -46,7 +47,7 @@ model Lot {
   createdAt        DateTime  @default(now())
 
   seller    User       @relation("LotSeller", fields: [createdById], references: [id])
-  winner    User?      @relation(fields: [winnerId], references: [id])
+  winner    User?      @relation("LotWinner", fields: [winnerId], references: [id])
   bids      Bid[]
   auditLogs AuditLog[]
 }
