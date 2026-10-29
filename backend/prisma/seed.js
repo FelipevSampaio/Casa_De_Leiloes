@@ -70,15 +70,35 @@ async function main() {
     },
   ];
 
+  const createdLots = [];
+
   for (const lotConfig of lotSeed) {
-    const createdLot = await prisma.lot.upsert({
-      where: { id: lotConfig.title },
-      update: lotConfig,
-      create: {
-        ...lotConfig,
-        id: `${lotConfig.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`,
-      },
+    const existingLot = await prisma.lot.findFirst({
+      where: { title: lotConfig.title },
     });
+
+    let createdLot;
+
+    if (existingLot) {
+      createdLot = await prisma.lot.update({
+        where: { id: existingLot.id },
+        data: {
+          ...lotConfig,
+          currentBid: lotConfig.currentBid ?? null,
+          winnerId: lotConfig.winnerId ?? null,
+        },
+      });
+    } else {
+      createdLot = await prisma.lot.create({
+        data: {
+          ...lotConfig,
+          currentBid: lotConfig.currentBid ?? null,
+          winnerId: lotConfig.winnerId ?? null,
+        },
+      });
+    }
+
+    createdLots.push(createdLot);
 
     await prisma.bid.createMany({
       data: [
@@ -93,26 +113,17 @@ async function main() {
   }
 
   await prisma.auditLog.createMany({
-    data: [
-      {
-        lotId: 'seed-lot-1',
-        action: 'LOT_CREATED',
-        details: 'Lote criado pelo vendedor',
-        actorId: seller.id,
-      },
-      {
-        lotId: 'seed-lot-2',
-        action: 'BID_REGISTERED',
-        details: 'João entrou com lance de R$ 1.500.',
-        actorId: bidder1.id,
-      },
-      {
-        lotId: 'seed-lot-3',
-        action: 'LOT_CLOSED',
-        details: 'Relógio de parede foi arrematado por Maria.',
-        actorId: bidder2.id,
-      },
-    ],
+    data: createdLots.map((lot, index) => ({
+      lotId: lot.id,
+      action: index === 0 ? 'LOT_CREATED' : index === 1 ? 'BID_REGISTERED' : 'LOT_CLOSED',
+      details:
+        index === 0
+          ? 'Lote criado pelo vendedor'
+          : index === 1
+            ? 'João entrou com lance de R$ 1.500.'
+            : 'Relógio de parede foi arrematado por Maria.',
+      actorId: index === 0 ? seller.id : index === 1 ? bidder1.id : bidder2.id,
+    })),
     skipDuplicates: true,
   });
 }

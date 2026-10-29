@@ -58,6 +58,12 @@ export default function App() {
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.reason || data.message || 'Não foi possível registrar o lance.');
+        return;
+      }
+
       const updatedLots = lots.map((lot) =>
         lot.id === selectedLot.id ? { ...lot, currentBid: nextBid } : lot
       );
@@ -67,6 +73,34 @@ export default function App() {
     } catch (error) {
       console.error('Erro ao registrar lance:', error);
       alert('Não foi possível registrar o lance.');
+    }
+  };
+
+  const handleCloseLot = async (lotId) => {
+    try {
+      const response = await fetch(`${API_URL}/lots/${lotId}/close`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.reason || data.message || 'Não foi possível encerrar o lote.');
+        return;
+      }
+
+      setLots((currentLots) => currentLots.map((lot) =>
+        lot.id === lotId ? { ...lot, status: 'CLOSED' } : lot
+      ));
+
+      if (selectedLotId === lotId) {
+        setSelectedLotId(lotId);
+      }
+
+      alert(data.message || 'Lote encerrado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao encerrar lote:', error);
+      alert('Não foi possível encerrar o lote.');
     }
   };
 
@@ -252,7 +286,14 @@ export default function App() {
                         <strong>{lot.title}</strong>
                         <span>{lot.currentBid ? `Lance atual: R$ ${lot.currentBid}` : 'Sem lances'}</span>
                       </div>
-                      <button type="button" className="secondary-button">Encerrar</button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => handleCloseLot(lot.id)}
+                        disabled={lot.status === 'CLOSED'}
+                      >
+                        {lot.status === 'CLOSED' ? 'Encerrado' : 'Encerrar'}
+                      </button>
                     </li>
                   ))}
                 </ul>
